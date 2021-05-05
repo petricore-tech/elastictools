@@ -8,5 +8,6 @@ setup(
     version='1.0',
     name='elastictools',
     install_requires=required,
-    packages=find_packages()
+    packages=find_packages(),
+    entry_points={'console_scripts': ['mongo2elastic=mongo.mongo2elastic:run']}
 )
