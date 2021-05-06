@@ -9,5 +9,11 @@ setup(
     name='elastictools',
     install_requires=required,
     packages=find_packages(),
-    entry_points={'console_scripts': ['mongo2elastic=mongo.mongo2elastic:run']}
+    entry_points={
+        'console_scripts': [
+            'mongo2elastic=mongo.mongo2elastic:run',
+            'elasticdump=backup.dump:run',
+            'elasticload=backup.load:run'
+        ]
+    }
 )

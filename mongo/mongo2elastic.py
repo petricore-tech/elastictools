@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import asyncio
 from elasticsearch import AsyncElasticsearch
 from elasticsearch.helpers import async_bulk
