@@ -10,7 +10,7 @@ from collections import deque
 from motor.motor_asyncio import AsyncIOMotorClient
 
 
-class Streamer:
+class UpdateStreamer:
     def __init__(
         self, 
         mongo_address, 
@@ -98,7 +98,7 @@ class Streamer:
 
 
 async def main(args):
-    async with Streamer(
+    async with UpdateStreamer(
         mongo_address=args.mongo_address,
         mongo_db=args.mongo_db,
         mongo_collection=args.mongo_collection,
