@@ -26,7 +26,7 @@ class UpdateStreamer:
         self.elastic_address = elastic_address
         self.elastic_index = elastic_index
 
-        self.logger = logging.getLogger('Mongo2Elastic')
+        self.logger = logging.getLogger('UpdateStreamer')
         self.logger.setLevel(logging.INFO)
 
         self.actions = deque(maxlen=batch_size)
@@ -53,7 +53,7 @@ class UpdateStreamer:
     async def handle_change(self, change: dict):
         if change['operationType'] == 'delete':
             _id = change.get('documentKey', {}).get('_id')
-            self.logger.info(f"new delete {_id}")
+            self.logger.info(f"New delete {_id}")
             res = await self.es.delete(index=self.elastic_index, id=_id)
         else:
             if change['operationType'] not in ['insert', 'replace', 'update']:
@@ -64,7 +64,7 @@ class UpdateStreamer:
                 if not doc:
                     return
             try:
-                self.logger.info(f"new {change['operationType']} {doc}")
+                self.logger.info(f"New {change['operationType']} {doc}")
                 _id = doc.pop('_id')
                 action = {
                     "_index": self.elastic_index,
@@ -76,7 +76,7 @@ class UpdateStreamer:
                     if len(self.actions) == self.actions.maxlen:
                         res = await async_bulk(self.es, self.actions)
                         self.actions.clear()
-                        self.logger.info(f"bulk transaction result: {res}")
+                        self.logger.info(f"Bulk transaction result: {res}")
             except Exception as e:
                 self.logger.error(e)
 
@@ -87,11 +87,11 @@ class UpdateStreamer:
                 async with self.mutex:
                     res = await async_bulk(self.es, self.actions)
                     self.actions.clear()
-                    self.logger.info(f"periodic bulk transaction result: {res}")
+                    self.logger.info(f"Periodic bulk transaction result: {res}")
 
     async def run(self):
         async with self.mongo_col.watch() as stream:
-            self.logger.info("listening mongo updates...")
+            self.logger.info("Listening mongo updates...")
             asyncio.create_task(self.periodic_push(period=1))
             async for change in stream:
                 asyncio.create_task(self.handle_change(change))

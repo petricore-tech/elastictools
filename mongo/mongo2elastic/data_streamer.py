@@ -26,12 +26,10 @@ class DataStreamer:
         self.mongo_collection = mongo_collection
         self.elastic_address = elastic_address
         self.elastic_index = elastic_index
-
-        self.logger = logging.getLogger('Mongo2Elastic')
-        self.logger.setLevel(logging.INFO)
-
         self.batch_size = batch_size
-        self.mutex = asyncio.Lock()
+
+        self.logger = logging.getLogger('DataStreamer')
+        self.logger.setLevel(logging.INFO)
 
     async def __aenter__(self):
         self.es = AsyncElasticsearch(hosts=self.elastic_address)
@@ -72,7 +70,7 @@ class DataStreamer:
 
     async def stream_batch(self, batch: list):
         result = await async_bulk(self.es, batch)
-        self.logger.info(f"periodic bulk transaction result: {result}")
+        self.logger.info(f"Periodic bulk transaction result: {result}")
             
 
 async def main(args):
