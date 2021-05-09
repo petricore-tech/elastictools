@@ -12,6 +12,7 @@ setup(
     entry_points={
         'console_scripts': [
             'mongo2elastic=mongo.mongo2elastic:run',
+            'elastic2mongo=mongo.elastic2mongo:run',
             'elasticdump=backup.dump:run',
             'elasticload=backup.load:run'
         ]

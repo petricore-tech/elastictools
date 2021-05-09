@@ -11,6 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 
 class UpdateStreamer:
+    
     def __init__(
         self, 
         mongo_address, 

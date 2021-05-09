@@ -2,17 +2,15 @@
 
 import asyncio
 from elasticsearch import AsyncElasticsearch
-from elasticsearch.helpers import async_bulk
 import argparse
 import logging
 import sys
-from collections import deque
 from motor.motor_asyncio import AsyncIOMotorClient
-from copy import deepcopy
+from bson import ObjectId
 
 
 class DataStreamer:
-    
+
     def __init__(
         self, 
         mongo_address, 
@@ -50,30 +48,35 @@ class DataStreamer:
             handler.close()
 
     async def run(self):
-        col = self.mongo_client[self.mongo_db][self.mongo_collection]
-
-        cursor = col.find()
-        actions = []
         tasks = []
-        async for doc in cursor:
-            _id = doc.pop('_id')
-            actions.append({
-                "_index": self.elastic_index,
-                "_id": str(_id),
-                "_source": doc
-            })
-            if len(actions) == self.batch_size:
-                tasks.append(asyncio.create_task(self.stream_batch(deepcopy(actions))))
-                actions.clear()
-        if actions:
-            tasks.append(asyncio.create_task(self.stream_batch(deepcopy(actions))))
+        match_all = {
+            "size": self.batch_size,
+            "query": {
+                "match_all": {}
+            }
+        }
+        scroll_id = None
+
+        while True:
+            # We obtain scroll_id on the first run, then use it to get the next page of results and a new scroll_id
+            scroll_response = await self.es.search(index=self.elastic_index, body=match_all, scroll='2s')\
+                if not scroll_id else await self.es.scroll(scroll_id=scroll_id, scroll='2s')
+            scroll_id = scroll_response['_scroll_id']
+
+            documents = scroll_response['hits']['hits']
+            if not documents:
+                break
+            documents = [dict(**d['_source'], _id=ObjectId(d['_id']) if ObjectId.is_valid(d['_id']) else d['_id'])\
+                for d in documents]
+            tasks.append(asyncio.create_task(self.insert_to_mongo(documents)))
+        tasks.append(asyncio.create_task(self.es.clear_scroll(scroll_id=scroll_id)))
         await asyncio.wait(tasks)
+        
+    async def insert_to_mongo(self, documents: list):
+        result = await self.mongo_client[self.mongo_db][self.mongo_collection].insert_many(documents)
+        self.logger.info(f'Bulk insert result: {result}')
 
-    async def stream_batch(self, batch: list):
-        result = await async_bulk(self.es, batch)
-        self.logger.info(f"Periodic bulk transaction result: {result}")
-            
-
+    
 async def main(args):
     async with DataStreamer(
         mongo_address=args.mongo_address,
@@ -98,5 +101,6 @@ def run():
 
     asyncio.run(main(args))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     run()
