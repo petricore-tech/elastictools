@@ -20,19 +20,27 @@ class Loader:
         index: str, 
         input_dir: str, 
         chunk_size: int,
-        limit: Optional[int] = None
+        limit: Optional[int] = None, 
+        connection_pool_size=5
     ):
         self.elastic_address = elastic_address
         self.index = index
         self.input_dir = input_dir
         self.chunk_size = chunk_size
         self.limit = limit
+        self.connection_pool_size = connection_pool_size
 
         self.logger = logging.getLogger('Loader')
         self.logger.setLevel(logging.INFO)
 
     async def __aenter__(self):
-        self.es = AsyncElasticsearch(hosts=self.elastic_address)
+        # create connection to elasticsearch
+        es_host, es_port = self.elastic_address.split(':')
+        es_port = int(es_port)
+        self.es = AsyncElasticsearch(self.elastic_address)
+        for _ in range(self.connection_pool_size - 1):
+            self.es.transport.add_connection(dict(host=es_host, port=es_port))
+            
         self.logger.addHandler(logging.StreamHandler(sys.stdout))
         return self
 
@@ -82,11 +90,13 @@ class Loader:
 
 async def main(args):
     async with Loader(
-            elastic_address=args.elastic_address,
-            index=args.index,
-            input_dir=args.input_dir,
-            chunk_size=args.chunk_size,
-            limit=args.limit) as loader:
+        elastic_address=args.elastic_address,
+        index=args.index,
+        input_dir=args.input_dir,
+        chunk_size=args.chunk_size,
+        limit=args.limit,
+        connection_pool_size=args.connection_pool_size
+    ) as loader:
         await loader.start()
 
 
@@ -98,6 +108,7 @@ def run():
     parser.add_argument('--limit', type=int, required=False, default=None)
     parser.add_argument('--chunk_size', type=int, required=False, default=500,\
         help='Insert `chunk_size` documents in a single bulk operation')
+    parser.add_argument('--connection_pool_size', type=int, default=5)
     args = parser.parse_args()
 
     asyncio.run(main(args))
