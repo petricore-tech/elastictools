@@ -19,7 +19,8 @@ class DataStreamer:
         mongo_collection, 
         elastic_address, 
         elastic_index, 
-        batch_size=500
+        batch_size=500,
+        connection_pool_size=5
     ):
         self.mongo_address = mongo_address
         self.mongo_db = mongo_db
@@ -27,12 +28,20 @@ class DataStreamer:
         self.elastic_address = elastic_address
         self.elastic_index = elastic_index
         self.batch_size = batch_size
+        self.connection_pool_size = connection_pool_size
 
         self.logger = logging.getLogger('DataStreamer')
         self.logger.setLevel(logging.INFO)
 
     async def __aenter__(self):
-        self.es = AsyncElasticsearch(hosts=self.elastic_address)
+        # create connection to elasticsearch
+        es_host, es_port = self.elastic_address.split(':')
+        es_port = int(es_port)
+        self.es = AsyncElasticsearch(self.elastic_address)
+        for _ in range(self.connection_pool_size - 1):
+            self.es.transport.add_connection(dict(host=es_host, port=es_port))
+
+        # create connection to mongodb
         self.mongo_client = AsyncIOMotorClient(self.mongo_address)
 
         # add handlers for logger
@@ -80,7 +89,8 @@ async def main(args):
         mongo_collection=args.mongo_collection,
         elastic_address=args.elastic_address,
         elastic_index=args.elastic_index,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        connection_pool_size=args.connection_pool_size
     ) as streamer:
         await streamer.run()
 
@@ -93,6 +103,7 @@ def run():
     parser.add_argument('--elastic_address', type=str, required=True)
     parser.add_argument('--elastic_index', type=str, required=True)
     parser.add_argument('--batch_size', type=int, default=500)
+    parser.add_argument('--connection_pool_size', type=int, default=5)
     args = parser.parse_args()
 
     asyncio.run(main(args))
