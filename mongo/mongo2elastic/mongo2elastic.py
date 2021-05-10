@@ -16,7 +16,8 @@ class Mongo2ElasticStreamer:
         mongo_collection, 
         elastic_address, 
         elastic_index, 
-        batch_size=500
+        batch_size=500,
+        connection_pool_size=5
     ):
         self.data_streamer = DataStreamer(
             mongo_address,
@@ -24,7 +25,8 @@ class Mongo2ElasticStreamer:
             mongo_collection,
             elastic_address,
             elastic_index,
-            batch_size
+            batch_size,
+            connection_pool_size
         )
         self.update_streamer = UpdateStreamer(
             mongo_address,
@@ -32,7 +34,8 @@ class Mongo2ElasticStreamer:
             mongo_collection,
             elastic_address,
             elastic_index,
-            batch_size
+            batch_size,
+            connection_pool_size
         )
         self.logger = logging.getLogger('Mongo2Elastic')
         self.logger.setLevel(logging.INFO)
@@ -66,7 +69,8 @@ async def main(args):
         mongo_collection=args.mongo_collection,
         elastic_address=args.elastic_address,
         elastic_index=args.elastic_index,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        connection_pool_size=args.connection_pool_size
     ) as streamer:
         await streamer.run()
 
@@ -79,6 +83,7 @@ def run():
     parser.add_argument('--elastic_address', type=str, required=True)
     parser.add_argument('--elastic_index', type=str, required=True)
     parser.add_argument('--batch_size', type=int, default=500)
+    parser.add_argument('--connection_pool_size', type=int, default=5)
     args = parser.parse_args()
 
     asyncio.run(main(args))
