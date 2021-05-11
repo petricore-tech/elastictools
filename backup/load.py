@@ -51,25 +51,24 @@ class Loader:
         [h.close() for h in self.logger.handlers]
 
     async def start(self):
-        await self.create_index_with_meta()
+        if self.mode == 'default':
+            await self.create_index_with_meta()
         await self.upload_data()
 
     async def create_index_with_meta(self):
-        body = {}
-        if self.mode == 'default':
-            async with aiofiles.open(os.path.join(self.input_dir, 'settings.json'), 'r') as sf,\
-                    aiofiles.open(os.path.join(self.input_dir, 'mappings.json'), 'r') as mf:
-                settings, mappings = await asyncio.gather(sf.readline(), mf.readline())
-        
-            settings = ujson.loads(settings)['index']
-            settings.pop('routing')
-            settings.pop('provided_name')
-            settings.pop('creation_date')
-            settings.pop('uuid')
-            settings.pop('version')
-        
-            mappings = ujson.loads(mappings)
-            body = {"settings": settings, "mappings": mappings}
+        async with aiofiles.open(os.path.join(self.input_dir, 'settings.json'), 'r') as sf,\
+                aiofiles.open(os.path.join(self.input_dir, 'mappings.json'), 'r') as mf:
+            settings, mappings = await asyncio.gather(sf.readline(), mf.readline())
+    
+        settings = ujson.loads(settings)['index']
+        settings.pop('routing')
+        settings.pop('provided_name')
+        settings.pop('creation_date')
+        settings.pop('uuid')
+        settings.pop('version')
+    
+        mappings = ujson.loads(mappings)
+        body = {"settings": settings, "mappings": mappings}
 
         res = await self.es.indices.create(self.index, body=body)
         self.logger.info('Index created sucessfully!' if res.get('acknowledged') else 'Index creation failed!')
