@@ -68,10 +68,6 @@ class UpdateStreamer:
             if change['operationType'] not in ['insert', 'replace', 'update']:
                 return
             doc = change.get('fullDocument')
-            if not doc:
-                doc = await self.mongo_col.find_one(change.get('documentKey'))
-                if not doc:
-                    return
             try:
                 self.logger.info(f"New {change['operationType']} {doc}")
                 _id = doc.pop('_id')
@@ -99,7 +95,7 @@ class UpdateStreamer:
                     self.logger.info(f"Periodic bulk transaction result: {res}")
 
     async def run(self):
-        async with self.mongo_col.watch() as stream:
+        async with self.mongo_col.watch(full_document='updateLookup') as stream:
             self.logger.info("Listening mongo updates...")
             asyncio.create_task(self.periodic_push(period=1))
             async for change in stream:
