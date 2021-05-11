@@ -10,9 +10,13 @@ from mongo.mongo2elastic.base_streamer import BaseStreamer
 
 class Mongo2ElasticStreamer(BaseStreamer):
     
-    def __init__(self, *args, **kwargs):
-        self.data_streamer = DataStreamer(*args, **kwargs)
-        self.update_streamer = UpdateStreamer(*args, **kwargs)
+    def __init__(self, mode: str, *args, **kwargs):
+        self.mode = mode
+
+        if self.mode in ['data', 'default']:
+            self.data_streamer = DataStreamer(*args, **kwargs)
+        if self.mode in ['updates', 'default']:
+            self.update_streamer = UpdateStreamer(*args, **kwargs)
 
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.setLevel(logging.INFO)
@@ -30,17 +34,20 @@ class Mongo2ElasticStreamer(BaseStreamer):
             handler.close()
 
     async def run(self):
-        async with self.data_streamer:
-            self.logger.info('Streaming existing data...')
-            await self.data_streamer.run()
-            self.logger.info('Existing data streamed sucessfully')
-        async with self.update_streamer:
-            self.logger.info('Streaming updates...')
-            await self.update_streamer.run()
+        if self.mode in ['data', 'default']:
+            async with self.data_streamer:
+                self.logger.info('Streaming existing data...')
+                await self.data_streamer.run()
+                self.logger.info('Existing data streamed sucessfully')
+        if self.mode in ['updates', 'default']:
+            async with self.update_streamer:
+                self.logger.info('Streaming updates...')
+                await self.update_streamer.run()
 
 
 async def main(args):
     async with Mongo2ElasticStreamer(
+        mode=args.mode,
         mongo_address=args.mongo_address,
         mongo_db=args.mongo_db,
         mongo_collection=args.mongo_collection,
@@ -61,6 +68,7 @@ def run():
     parser.add_argument('--elastic_index', type=str, required=True)
     parser.add_argument('--batch_size', type=int, default=500)
     parser.add_argument('--connection_pool_size', type=int, default=5)
+    parser.add_argument('--mode', choices=['data', 'updates', 'default'], required=False, default='default')
     args = parser.parse_args()
 
     asyncio.run(main(args))
