@@ -10,53 +10,10 @@ from collections import deque
 from motor.motor_asyncio import AsyncIOMotorClient
 from copy import deepcopy
 
+from mongo.mongo2elastic.base_streamer import BaseStreamer
 
-class DataStreamer:
-    
-    def __init__(
-        self, 
-        mongo_address, 
-        mongo_db, 
-        mongo_collection, 
-        elastic_address, 
-        elastic_index, 
-        batch_size=500,
-        connection_pool_size=5
-    ):
-        self.mongo_address = mongo_address
-        self.mongo_db = mongo_db
-        self.mongo_collection = mongo_collection
-        self.elastic_address = elastic_address
-        self.elastic_index = elastic_index
-        self.batch_size = batch_size
-        self.connection_pool_size = connection_pool_size
 
-        self.logger = logging.getLogger('DataStreamer')
-        self.logger.setLevel(logging.INFO)
-
-    async def __aenter__(self):
-        # create connection to elasticsearch
-        es_host, es_port = self.elastic_address.split(':')
-        es_port = int(es_port)
-        self.es = AsyncElasticsearch(self.elastic_address)
-        for _ in range(self.connection_pool_size - 1):
-            self.es.transport.add_connection(dict(host=es_host, port=es_port))
-
-        # create connection to mongodb
-        self.mongo_client = AsyncIOMotorClient(self.mongo_address)
-
-        # add handlers for logger
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(handler)
-        return self
-
-    async def __aexit__(self, *exc_info):
-        await self.es.close()
-        self.mongo_client.close()
-        for handler in self.logger.handlers:
-            handler.close()
+class DataStreamer(BaseStreamer):
 
     async def run(self):
         col = self.mongo_client[self.mongo_db][self.mongo_collection]

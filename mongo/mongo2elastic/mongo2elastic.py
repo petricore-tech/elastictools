@@ -5,39 +5,16 @@ import asyncio
 
 from mongo.mongo2elastic.data_streamer import DataStreamer
 from mongo.mongo2elastic.update_streamer import UpdateStreamer
+from mongo.mongo2elastic.base_streamer import BaseStreamer
 
 
-class Mongo2ElasticStreamer:
+class Mongo2ElasticStreamer(BaseStreamer):
     
-    def __init__(
-        self,
-        mongo_address, 
-        mongo_db, 
-        mongo_collection, 
-        elastic_address, 
-        elastic_index, 
-        batch_size=500,
-        connection_pool_size=5
-    ):
-        self.data_streamer = DataStreamer(
-            mongo_address,
-            mongo_db,
-            mongo_collection,
-            elastic_address,
-            elastic_index,
-            batch_size,
-            connection_pool_size
-        )
-        self.update_streamer = UpdateStreamer(
-            mongo_address,
-            mongo_db,
-            mongo_collection,
-            elastic_address,
-            elastic_index,
-            batch_size,
-            connection_pool_size
-        )
-        self.logger = logging.getLogger('Mongo2Elastic')
+    def __init__(self, *args, **kwargs):
+        self.data_streamer = DataStreamer(*args, **kwargs)
+        self.update_streamer = UpdateStreamer(*args, **kwargs)
+
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.setLevel(logging.INFO)
 
     async def __aenter__(self):

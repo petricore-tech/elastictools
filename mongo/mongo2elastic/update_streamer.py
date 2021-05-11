@@ -9,56 +9,21 @@ import sys
 from collections import deque
 from motor.motor_asyncio import AsyncIOMotorClient
 
+from mongo.mongo2elastic.base_streamer import BaseStreamer
 
-class UpdateStreamer:
+
+class UpdateStreamer(BaseStreamer):
     
-    def __init__(
-        self, 
-        mongo_address, 
-        mongo_db, 
-        mongo_collection, 
-        elastic_address, 
-        elastic_index, 
-        batch_size=500,
-        connection_pool_size=5
-    ):
-        self.mongo_address = mongo_address
-        self.mongo_db = mongo_db
-        self.mongo_collection = mongo_collection
-        self.elastic_address = elastic_address
-        self.elastic_index = elastic_index
-        self.connection_pool_size = connection_pool_size
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        self.logger = logging.getLogger('UpdateStreamer')
-        self.logger.setLevel(logging.INFO)
-
-        self.actions = deque(maxlen=batch_size)
+        self.actions = deque(maxlen=self.batch_size)
         self.mutex = asyncio.Lock()
 
     async def __aenter__(self):
-        # create connection to elasticsearch
-        es_host, es_port = self.elastic_address.split(':')
-        es_port = int(es_port)
-        self.es = AsyncElasticsearch(self.elastic_address)
-        for _ in range(self.connection_pool_size - 1):
-            self.es.transport.add_connection(dict(host=es_host, port=es_port))
-
-        # create connection to mongodb
-        self.mongo_client = AsyncIOMotorClient(self.mongo_address)
+        await super().__aenter__()
         self.mongo_col = self.mongo_client[self.mongo_db][self.mongo_collection]
-
-        # add handlers for logger
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(handler)
         return self
-
-    async def __aexit__(self, *exc_info):
-        await self.es.close()
-        self.mongo_client.close()
-        for handler in self.logger.handlers:
-            handler.close()
 
     async def handle_change(self, change: dict):
         if change['operationType'] == 'delete':
