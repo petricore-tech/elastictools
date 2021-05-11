@@ -20,6 +20,7 @@ class Loader:
         index: str, 
         input_dir: str, 
         chunk_size: int,
+        mode: str,
         limit: Optional[int] = None, 
         connection_pool_size=5
     ):
@@ -29,6 +30,7 @@ class Loader:
         self.chunk_size = chunk_size
         self.limit = limit
         self.connection_pool_size = connection_pool_size
+        self.mode = mode
 
         self.logger = logging.getLogger('Loader')
         self.logger.setLevel(logging.INFO)
@@ -53,19 +55,23 @@ class Loader:
         await self.upload_data()
 
     async def create_index_with_meta(self):
-        async with aiofiles.open(os.path.join(self.input_dir, 'settings.json'), 'r') as sf,\
-                aiofiles.open(os.path.join(self.input_dir, 'mappings.json'), 'r') as mf:
-            settings, mappings = await asyncio.gather(sf.readline(), mf.readline())
+        body = {}
+        if self.mode == 'default':
+            async with aiofiles.open(os.path.join(self.input_dir, 'settings.json'), 'r') as sf,\
+                    aiofiles.open(os.path.join(self.input_dir, 'mappings.json'), 'r') as mf:
+                settings, mappings = await asyncio.gather(sf.readline(), mf.readline())
         
-        settings = ujson.loads(settings)['index']
-        settings.pop('routing')
-        settings.pop('provided_name')
-        settings.pop('creation_date')
-        settings.pop('uuid')
-        settings.pop('version')
+            settings = ujson.loads(settings)['index']
+            settings.pop('routing')
+            settings.pop('provided_name')
+            settings.pop('creation_date')
+            settings.pop('uuid')
+            settings.pop('version')
+        
+            mappings = ujson.loads(mappings)
+            body = {"settings": settings, "mappings": mappings}
 
-        mappings = ujson.loads(mappings)
-        res = await self.es.indices.create(self.index, body={"settings": settings, "mappings": mappings})
+        res = await self.es.indices.create(self.index, body=body)
         self.logger.info('Index created sucessfully!' if res.get('acknowledged') else 'Index creation failed!')
 
     async def upload_data(self):
@@ -95,7 +101,8 @@ async def main(args):
         input_dir=args.input_dir,
         chunk_size=args.chunk_size,
         limit=args.limit,
-        connection_pool_size=args.connection_pool_size
+        connection_pool_size=args.connection_pool_size,
+        mode=args.mode
     ) as loader:
         await loader.start()
 
@@ -109,6 +116,7 @@ def run():
     parser.add_argument('--chunk_size', type=int, required=False, default=500,\
         help='Insert `chunk_size` documents in a single bulk operation')
     parser.add_argument('--connection_pool_size', type=int, default=5)
+    parser.add_argument('--mode', choices=['data', 'default'], required=False, default='default')
     args = parser.parse_args()
 
     asyncio.run(main(args))
