@@ -59,10 +59,10 @@ class UpdateStreamer(BaseStreamer):
                 async with self.mutex:
                     try:
                         res = await async_bulk(self.es, self.actions)
+                        self.actions.clear()
+                        self.logger.info(f"Periodic bulk transaction result: {res}")
                     except Exception as e:
                         self.logger.error(f'{e}\n{traceback.format_exc()}')
-                    self.actions.clear()
-                    self.logger.info(f"Periodic bulk transaction result: {res}")
 
     async def run(self):
         async with self.mongo_col.watch(full_document='updateLookup') as stream:
