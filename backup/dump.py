@@ -1,44 +1,19 @@
 #!/usr/bin/env python
 
 import asyncio
-from elasticsearch import AsyncElasticsearch
 import aiofiles
-from typing import Optional
 import ujson
 import os
 import argparse
-import logging
-import sys
+
+from backup.base import BaseBackupWorker
 
 
-class Dumper:
-
-    def __init__(
-        self, 
-        elastic_address: str, 
-        index: str, 
-        output_dir: str, 
-        chunk_size: int,
-        limit: Optional[int] = None
-    ):
-        self.elastic_address = elastic_address
-        self.index = index
+class Dumper(BaseBackupWorker):
+    def __init__(self, output_dir, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.output_dir = output_dir
-        self.chunk_size = chunk_size
-        self.limit = limit
-
-        self.logger = logging.getLogger('Dumper')
-        self.logger.setLevel(logging.INFO)
-
-    async def __aenter__(self):
-        self.es = AsyncElasticsearch(hosts=self.elastic_address)
-        self.logger.addHandler(logging.StreamHandler(sys.stdout))
-        return self
-
-    async def __aexit__(self, *exc_info):
-        await self.es.close()
-        [h.close() for h in self.logger.handlers]
-
+        
     async def dump_meta(self):
         meta = (await self.es.indices.get(self.index))[self.index]
         async with aiofiles.open(os.path.join(self.output_dir, 'mappings.json'), 'w') as mf, \

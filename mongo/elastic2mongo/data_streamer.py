@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
 import asyncio
-from elasticsearch import AsyncElasticsearch
 import argparse
-import logging
-import sys
-from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
 from mongo.elastic2mongo.base_streamer import BaseStreamer
