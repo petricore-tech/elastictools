@@ -6,28 +6,13 @@ import logging
 import sys
 
 from mongo.elastic2mongo.data_streamer import DataStreamer
+from mongo.elastic2mongo.base_streamer import BaseStreamer
 
 
-class Elastic2MongoStreamer:
-
-    def __init__(
-        self,
-        mongo_address, 
-        mongo_db, 
-        mongo_collection, 
-        elastic_address, 
-        elastic_index, 
-        batch_size=500
-    ):
-        self.data_streamer = DataStreamer(
-            mongo_address,
-            mongo_db,
-            mongo_collection,
-            elastic_address,
-            elastic_index,
-            batch_size
-        )
-        self.logger = logging.getLogger('Elastic2Mongo')
+class Elastic2MongoStreamer(BaseStreamer):
+    def __init__(self, *args, **kwargs):
+        self.data_streamer = DataStreamer(*args, **kwargs)
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.setLevel(logging.INFO)
 
     async def __aenter__(self):
