@@ -8,6 +8,7 @@ import logging
 import sys
 from collections import deque
 from motor.motor_asyncio import AsyncIOMotorClient
+import traceback
 
 from mongo.mongo2elastic.base_streamer import BaseStreamer
 
@@ -49,14 +50,17 @@ class UpdateStreamer(BaseStreamer):
                         self.actions.clear()
                         self.logger.info(f"Bulk transaction result: {res}")
             except Exception as e:
-                self.logger.error(e)
+                self.logger.error(f'{e}\n{traceback.format_exc()}')
 
     async def periodic_push(self, period=1):
         while True:
             await asyncio.sleep(period)
             if self.actions:
                 async with self.mutex:
-                    res = await async_bulk(self.es, self.actions)
+                    try:
+                        res = await async_bulk(self.es, self.actions)
+                    except Exception as e:
+                        self.logger.error(f'{e}\n{traceback.format_exc()}')
                     self.actions.clear()
                     self.logger.info(f"Periodic bulk transaction result: {res}")
 
