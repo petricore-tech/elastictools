@@ -6,9 +6,10 @@ with open('requirements.txt') as f:
 
 setup(
     version='1.0',
-    name='elastictools',
+    name='elastic-tools',
     install_requires=required,
     packages=find_packages(),
+    url='https://github.com/petricore-tech/elastictools.git',
     entry_points={
         'console_scripts': [
             'mongo2elastic=mongo.mongo2elastic:run',
