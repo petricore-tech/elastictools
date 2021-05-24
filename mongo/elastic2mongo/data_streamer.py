@@ -1,52 +1,14 @@
 #!/usr/bin/env python
 
 import asyncio
-from elasticsearch import AsyncElasticsearch
 import argparse
-import logging
-import sys
-from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
+from mongo.elastic2mongo.base_streamer import BaseStreamer
 
-class DataStreamer:
 
-    def __init__(
-        self, 
-        mongo_address, 
-        mongo_db, 
-        mongo_collection, 
-        elastic_address, 
-        elastic_index, 
-        batch_size=500
-    ):
-        self.mongo_address = mongo_address
-        self.mongo_db = mongo_db
-        self.mongo_collection = mongo_collection
-        self.elastic_address = elastic_address
-        self.elastic_index = elastic_index
-        self.batch_size = batch_size
-
-        self.logger = logging.getLogger('DataStreamer')
-        self.logger.setLevel(logging.INFO)
-
-    async def __aenter__(self):
-        self.es = AsyncElasticsearch(hosts=self.elastic_address)
-        self.mongo_client = AsyncIOMotorClient(self.mongo_address)
-
-        # add handlers for logger
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(handler)
-        return self
-
-    async def __aexit__(self, *exc_info):
-        await self.es.close()
-        self.mongo_client.close()
-        for handler in self.logger.handlers:
-            handler.close()
-
+class DataStreamer(BaseStreamer):
+    
     async def run(self):
         tasks = []
         match_all = {

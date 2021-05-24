@@ -3,52 +3,29 @@
 import ujson
 import asyncio
 import aiofiles
-from typing import Optional
 import argparse
-from elasticsearch import AsyncElasticsearch
 from elasticsearch.helpers import async_bulk
-import logging
 from copy import deepcopy
-import sys
 import os
 
+from backup.base import BaseBackupWorker
 
-class Loader:
-    def __init__(
-        self, 
-        elastic_address: str, 
-        index: str, 
-        input_dir: str, 
-        chunk_size: int,
-        mode: str,
-        limit: Optional[int] = None, 
-        connection_pool_size=5
-    ):
-        self.elastic_address = elastic_address
-        self.index = index
+
+class Loader(BaseBackupWorker):
+    def __init__(self, mode: str, input_dir: str, connection_pool_size=5, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.input_dir = input_dir
-        self.chunk_size = chunk_size
-        self.limit = limit
         self.connection_pool_size = connection_pool_size
         self.mode = mode
 
-        self.logger = logging.getLogger('Loader')
-        self.logger.setLevel(logging.INFO)
-
     async def __aenter__(self):
         # create connection to elasticsearch
+        await super().__aenter__()
         es_host, es_port = self.elastic_address.split(':')
         es_port = int(es_port)
-        self.es = AsyncElasticsearch(self.elastic_address)
         for _ in range(self.connection_pool_size - 1):
             self.es.transport.add_connection(dict(host=es_host, port=es_port))
-            
-        self.logger.addHandler(logging.StreamHandler(sys.stdout))
         return self
-
-    async def __aexit__(self, *exc_info):
-        await self.es.close()
-        [h.close() for h in self.logger.handlers]
 
     async def start(self):
         if self.mode == 'default':
